@@ -1,0 +1,23 @@
+# Results directories
+results*/
+results*/
+results*/
+results_strong*/
+results_strong2*/
+source/
+__pycache__/
+
+# Python cache
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment
+.env
+.venv
+env/
+venv/
