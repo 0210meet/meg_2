@@ -44,7 +44,7 @@
 
 ```
 本地提交：成功 ✅
-提交ID：130c4ea
+提交ID：d529652
 提交文件：
   - 01_Batch_MEG_Coregistration.py (路径已修正)
   - 02_MEG_Source_Estimate.py (路径已修正)
@@ -52,8 +52,10 @@
   - run_thal_cortex_spike_ccg_strong.py
   - SEEG_Cortex_Thalamus_CCG_Analysis.py
   - .gitignore
+  - reademe.md (移除敏感信息)
 
-GitHub推送：失败 ❌ (网络连接超时，服务器无法访问github.com:443)
+GitHub推送：成功 ✅ (2025-02-02 23:00 通过SSH)
+仓库地址：https://github.com/0210meet/meg_2.git
 ```
 
 ### 三、环境验证
