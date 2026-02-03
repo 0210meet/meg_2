@@ -17,14 +17,15 @@ import os
 import mne
 import numpy as np
 from scipy.signal import find_peaks, hilbert
+from scipy.stats import zscore
 from mne.filter import filter_data
 import matplotlib.pyplot as plt
 
 # ===================== 配置参数 =====================
-SUBJECTS = ["sub-01"]  # 测试
+SUBJECTS = [f"sub-{i:02d}" for i in range(1, 9)]  # 全部8个被试
 STATES = ["EC", "EO"]
 
-SOURCE_DIR = "/data/shared_home/tlm/Project/MEG-C/source"
+SOURCE_DIR = "/data/shared_home/tlm/Project/MEG-C/source_DBA"
 FREESURFER_DIR = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"
 SAVE_DIR = "/data/shared_home/tlm/Project/MEG-C/results_SOZ"
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -41,7 +42,7 @@ SOZ_MIN_CLUSTER_SIZE = 10   # 最小聚类大小
 
 # 高置信度IED参数（更严格）
 HIGH_CONFIDENCE_Z_THRESH = 5.0  # 更高的Z阈值
-HIGH_CONFIDENCE_MIN_AMP = np.percentile  # 排除最低幅值
+HIGH_CONFIDENCE_AMP_PERCENTILE = 20  # 排除最低20%幅值
 
 # ===================== SOZ检测函数 =====================
 def identify_soz_from_stc(stc, percentile_thresh=95):
@@ -87,8 +88,8 @@ def create_soz_label_from_sources(src, soz_source_indices, hemi):
     if len(soz_vertices) == 0:
         return None
     
-    soz_label = Label(vertices=soz_vertices, hemi=hemi, 
-                     name=f"SOZ-{hemi}", subject=src[0]['subject'])
+    soz_label = Label(vertices=soz_vertices, hemi=hemi,
+                     name=f"SOZ-{hemi}")
     
     return soz_label
 
@@ -253,8 +254,8 @@ def process_with_soz(subject, run, state, src):
     """使用SOZ进行处理"""
     try:
         # 1. 读取STC
-        stc_fname = os.path.join(SOURCE_DIR, subject, run, 
-                                   f"{subject}-{run}-{state}-mixed-stc.h5")
+        stc_fname = os.path.join(SOURCE_DIR, subject, run,
+                                   f"{subject}-{run}-{state}-DBA-dSPM-stc.h5")
         if not os.path.exists(stc_fname):
             print(f"    ❌ STC文件不存在")
             return False
@@ -305,14 +306,15 @@ def process_with_soz(subject, run, state, src):
             return False
         
         # 6. 构建同侧丘脑ROI
-        thal_config = {"left": {"src_idx": 2, "name": "Left-Thalamus-Proper", "hemi": "lh"},
-                        "right": {"src_idx": 3, "name": "Right-Thalamus-Proper", "hemi": "rh"}}[dominant_hemi == 'lh' and 0 or 1]
+        thal_key = "left" if dominant_hemi == 'lh' else "right"
+        thal_config_map = {"left": {"src_idx": 2, "name": "Left-Thalamus-Proper", "hemi": "lh"},
+                           "right": {"src_idx": 3, "name": "Right-Thalamus-Proper", "hemi": "rh"}}
+        thal_config = thal_config_map[thal_key]
         
         thal_label = mne.Label(
             vertices=src[thal_config["src_idx"]]["vertno"],
             hemi=thal_config["hemi"],
-            name=thal_config["name"],
-            subject=subject
+            name=thal_config["name"]
         )
         
         thal_ts = mne.extract_label_time_course(

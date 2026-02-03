@@ -22,14 +22,15 @@ import os
 import mne
 import numpy as np
 from scipy.signal import find_peaks, hilbert
+from scipy.stats import zscore
 from mne.filter import filter_data
 import matplotlib.pyplot as plt
 
 # ===================== 配置参数 =====================
-SUBJECTS = ["sub-01"]  # 测试
+SUBJECTS = [f"sub-{i:02d}" for i in range(1, 9)]  # 全部8个被试
 STATES = ["EC", "EO"]
 
-SOURCE_DIR = "/data/shared_home/tlm/Project/MEG-C/source"  # 使用源数据
+SOURCE_DIR = "/data/shared_home/tlm/Project/MEG-C/source_DBA"  # 使用DBA源定位结果
 FREESURFER_DIR = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"
 SAVE_DIR = "/data/shared_home/tlm/Project/MEG-C/results_SOZ_Wodeyar"
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -71,25 +72,27 @@ def identify_soz_from_stc(stc, percentile_thresh=95):
 def create_soz_label_from_sources(src, soz_source_indices, hemi):
     """从源点创建SOZ label"""
     from mne import Label
-    
+
+    # 混合源空间: [lh_cortex, rh_cortex, lh_thalamus, rh_thalamus, ...其他volume源]
+    # 对于皮层SOZ，我们只使用前两个源空间（皮层）
     if hemi == 'lh':
-        src_idx = 0
+        src_idx = 0  # 左半球皮层
     else:
-        src_idx = 2  # 跳过volume源
-    
+        src_idx = 1  # 右半球皮层
+
     all_vertices = src[src_idx]['vertno']
-    
+
     soz_vertices = []
     for src_idx_in_soz in soz_source_indices:
-        if src_idx_in_soz < len(all_vertices):
+        # 确保索引在有效范围内
+        if 0 <= src_idx_in_soz < len(all_vertices):
             soz_vertices.append(all_vertices[src_idx_in_soz])
-    
+
     if len(soz_vertices) == 0:
         return None
-    
-    soz_label = Label(vertices=soz_vertices, hemi=hemi, 
-                     name=f"SOZ-Wodeyar-{hemi}", 
-                     subject=src[0]['subject'])
+
+    soz_label = Label(vertices=soz_vertices, hemi=hemi,
+                     name=f"SOZ-Wodeyar-{hemi}")
     return soz_label
 
 
@@ -189,22 +192,24 @@ def detect_ied_wodeyar(sig_raw, sfreq, high_confidence=False):
 def compute_aer(ref_times, target_sig, sfreq, window_sec=1.0):
     """Average Evoked Response"""
     half_win = int(window_sec * sfreq)
-    
+
     epochs = []
     for spike_time in ref_times:
-        if spike_time - half_win >= 0 and spike_time + half_win < len(target_sig):
-            epoch = target_sig[spike_time - half_win: spike_time + half_win].copy()
+        # 确保spike_time是整数类型
+        spike_idx = int(spike_time)
+        if spike_idx - half_win >= 0 and spike_idx + half_win < len(target_sig):
+            epoch = target_sig[spike_idx - half_win: spike_idx + half_win].copy()
             baseline_len = int(0.2 * len(epoch))
             epoch -= np.mean(epoch[:baseline_len])
             epochs.append(epoch)
-    
+
     if len(epochs) == 0:
-        return None, None
-    
+        return None, None, None
+
     aer_mean = np.mean(epochs, axis=0)
     aer_sem = np.std(epochs, axis=0) / np.sqrt(len(epochs))
     times = np.linspace(-window_sec, window_sec, len(aer_mean))
-    
+
     return times, aer_mean, aer_sem
 
 
@@ -275,8 +280,8 @@ def process_soz_wodeyar(subject, run, state, src):
     """结合SOZ和Wodeyar方法"""
     try:
         # 1. 读取STC
-        stc_fname = os.path.join(SOURCE_DIR, subject, run, 
-                                   f"{subject}-{run}-{state}-mixed-stc.h5")
+        stc_fname = os.path.join(SOURCE_DIR, subject, run,
+                                   f"{subject}-{run}-{state}-DBA-dSPM-stc.h5")
         if not os.path.exists(stc_fname):
             return False
         
@@ -332,16 +337,18 @@ def process_soz_wodeyar(subject, run, state, src):
             return False
         
         # 6. 同侧丘脑
-        thal_config = {
+        # 根据dominant_hemi选择正确的丘脑配置
+        thal_key = "left" if dominant_hemi == 'lh' else "right"
+        thal_config_map = {
             "left": {"src_idx": 2, "name": "Left-Thalamus-Proper", "hemi": "lh"},
             "right": {"src_idx": 3, "name": "Right-Thalamus-Proper", "hemi": "rh"}
-        }[dominant_hemi == 'lh' and 0 or 1]
+        }
+        thal_config = thal_config_map[thal_key]
         
         thal_label = mne.Label(
             vertices=src[thal_config["src_idx"]]["vertno"],
             hemi=thal_config["hemi"],
-            name=thal_config["name"],
-            subject=subject
+            name=thal_config["name"]
         )
         
         thal_ts = mne.extract_label_time_course(
@@ -349,13 +356,18 @@ def process_soz_wodeyar(subject, run, state, src):
         )[0][0]
         
         thal_spikes = detect_ied_wodeyar(thal_ts, sfreq, high_confidence=False)
-        
+
         print(f"    丘脑spikes: {len(thal_spikes)}")
-        
+
+        # 检查丘脑spikes数量
+        if len(thal_spikes) < 3:
+            print(f"    ❌ 丘脑spikes数量不足，跳过分析")
+            return False
+
         # 7. AER分析（±1s窗口，文献标准）
         print(f"\n  [3] AER分析 (±{AER_WINDOW_SEC}s窗口)")
         times, aer_mean, aer_sem = compute_aer(
-            soz_spikes_high_conf / sfreq,
+            soz_spikes_high_conf,  # 直接传递样本索引，不除以sfreq
             thal_ts,
             sfreq,
             window_sec=AER_WINDOW_SEC

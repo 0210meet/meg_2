@@ -64,7 +64,8 @@ DBA_STRUCTURES = {
 }
 
 # ===================== 全局配置 =====================
-subjects = [f"sub-{i:02d}" for i in range(1, 9)]
+subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # 全部被试
+# subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # 全部被试
 subjects_dir = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"
 meg_root = "/data/shared_home/tlm/data/MEG-C/spikes6"
 states = ["EC", "EO"]
@@ -185,13 +186,13 @@ def estimate_sources_with_DBA(subject, run, state, bem_dir, noise_cov):
         stc_dspm.save(stc_fname, overwrite=True)
         print(f"  ✅ STC保存成功 (DBA-dSPM)：{os.path.basename(stc_fname)}")
 
-        # 8. 可选：也保存wMNE和sLORETA版本用于比较
-        for method, inv_op in [('wMNE', inverse_op_wmne)]:
+        # 8. 可选：也保存MNE版本用于比较
+        for method, inv_op in [('MNE', inverse_op_wmne)]:
             stc_method = mne.minimum_norm.apply_inverse_raw(
                 raw,
                 inv_op,
                 lambda2=1 / 9.,
-                method=method.lower(),
+                method=method,
                 verbose=False
             )
             stc_method_fname = os.path.join(
