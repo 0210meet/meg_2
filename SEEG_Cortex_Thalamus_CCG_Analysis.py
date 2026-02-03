@@ -59,7 +59,7 @@ def detect_ied_morphology(sig_raw, sig_filt_z, sfreq):
 
 # ===================== 整合分析模块 (CCG + AER) =====================
 
-def run_spike_propagation_analysis(cortex_ts, thal_ts, sfreq, tag="run"):
+def run_spike_propagation_analysis(cortex_ts, thal_ts, sfreq, tag="run", save_dir="."):
     """
     整合形态学检测、Shuffle-CCG 和 AER 提取
     """
@@ -145,11 +145,11 @@ def run_spike_propagation_analysis(cortex_ts, thal_ts, sfreq, tag="run"):
         "di": di_value  # 新增返回 DI
     }
 
-    plot_propagation_results(results, tag)
+    plot_propagation_results(results, tag, save_dir)
     return results
 
 
-def plot_propagation_results(res, tag):
+def plot_propagation_results(res, tag, save_dir="."):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
     # CCG Plot
@@ -184,4 +184,6 @@ def plot_propagation_results(res, tag):
     ax2.set_title(f'Thalamic Average Evoked Response (n={res["n_spikes"]})')
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()  # 注释掉show以避免阻塞，改为保存图片
+    plt.savefig(os.path.join(save_dir, f"{tag}_ccg_aer.png"), dpi=150, bbox_inches='tight')
+    plt.close()

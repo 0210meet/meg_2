@@ -10,9 +10,9 @@ mne.set_log_level("error")  # 抑制MNE内部非关键警告
 
 # ===================== 全局配置参数（与前序代码完全对齐） =====================
 # 1. 基础路径（无需重复设置FreeSurfer，前序代码已配置）
-# subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-01 ~ sub-08
-subjects = ["sub-01"]  # 测试时可单独指定被试
-subjects_dir = "/data/shared_home/tlm/data/MEG-C/freesurfer"
+subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-01 ~ sub-08
+# subjects = ["sub-01"]  # 测试时可单独指定被试
+subjects_dir = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"
 meg_root = "/data/shared_home/tlm/data/MEG-C/spikes6"  # MEG数据根目录
 states = ["EC", "EO"]  # 实验状态（闭眼/睁眼）
 n_jobs = 4  # 并行计算核心数

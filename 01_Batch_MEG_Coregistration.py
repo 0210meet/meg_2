@@ -20,9 +20,9 @@ for dir in fs_bin_dirs:
     os.environ["PATH"] += os.pathsep + dir
 
 # --- 配置部分: 根据你的实际项目结构修改 ---
-subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-01 … sub-08
-# subjects = ["sub-01"]
-subjects_dir = "/data/shared_home/tlm/data/MEG-C/freesurfer"
+# subjects = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-01 … sub-08
+subjects = ["sub-01"]
+subjects_dir = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"
 # save_dir = "/data/shared_home/tlm/data/"
 meg_root = "/data/shared_home/tlm/data/MEG-C/spikes6"  # MEG 数据根目录
 states = ["EC", "EO"]  # 实验状态 (闭眼 / 睁眼)

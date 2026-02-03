@@ -16,13 +16,13 @@ plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'SimHei', 'Arial Unicode MS']
 plt.rcParams['axes.unicode_minus'] = False
 
 # 1. 批量核心配置
-# SUBJECTS = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-02 ~ sub-08
-SUBJECTS = ["sub-01"]  # 测试时可单独指定被试
+SUBJECTS = [f"sub-{i:02d}" for i in range(1, 9)]  # sub-01 ~ sub-08
+# SUBJECTS = ["sub-01"]  # 测试时可单独指定被试
 STATES = ["EC", "EO"]  # 实验状态：闭眼/睁眼
 
 # 2. 路径配置（与逆解代码完全对齐）
 SOURCE_DIR = "/data/shared_home/tlm/Project/MEG-C/source"  # STC文件保存目录
-FREESURFER_DIR = "/data/shared_home/tlm/data/MEG-C/freesurfer"  # Freesurfer解剖数据目录
+FREESURFER_DIR = "/data/shared_home/tlm/data/MEG-C/freesurfer/mri"  # Freesurfer解剖数据目录
 SAVE_DIR = "/data/shared_home/tlm/Project/MEG-C/results4"  # CCG结果保存目录
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -140,10 +140,9 @@ def process_single_case(subject, run, state, src):
 
         # 7. 运行CCG分析并保存结果
         tag = f"{subject}_{run}_{state}"
-        ccg_results = run_spike_propagation_analysis(cortex_dipole_ts, thal_dipole_ts, sfreq, tag=tag)
-
         case_save_dir = os.path.join(SAVE_DIR, subject, run, state)
         os.makedirs(case_save_dir, exist_ok=True)
+        ccg_results = run_spike_propagation_analysis(cortex_dipole_ts, thal_dipole_ts, sfreq, tag=tag, save_dir=case_save_dir)
         np.save(os.path.join(case_save_dir, f"{tag}_ccg_results.npy"), ccg_results)
         print(f"💾 {subject}-{run}-{state}：结果保存至 {case_save_dir}")
 
